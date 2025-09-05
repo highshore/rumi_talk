@@ -17,12 +17,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Firebase App',
+      title: 'Rumi Talk',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Firebase Flutter App'),
+      home: const MyHomePage(title: 'Rumi Talk'),
     );
   }
 }

@@ -1,4 +1,4 @@
-# Firebase Flutter App
+# Rumi Talk
 
 A Flutter application integrated with Firebase services including Authentication and Cloud Firestore.
 
@@ -21,8 +21,8 @@ A Flutter application integrated with Firebase services including Authentication
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/highshore/firebase_app.git
-cd firebase_app
+git clone https://github.com/highshore/rumi_talk.git
+cd rumi_talk
 ```
 
 ### 2. Install Dependencies
