@@ -46,15 +46,8 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  /// Navigates back to the Home screen
-  void _navigateToHome() {
-    // Since we're using a navbar, we don't need to navigate
-    // The user can just tap the Home tab
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = StreamChatTheme.of(context);
 
     return Scaffold(
       body: _listController == null
