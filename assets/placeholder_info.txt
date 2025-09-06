@@ -1,0 +1,10 @@
+Placeholder assets needed for the login screen:
+
+1. assets/login_slider/slider1.jpg - First slider image
+2. assets/login_slider/slider2.jpg - Second slider image  
+3. assets/login_slider/slider3.jpg - Third slider image
+4. assets/brand/welcome_to_rumi.png - Welcome logo/brand image
+5. assets/google_btn.png - Google logo for the sign-in button
+
+For now, the app will use placeholder colors/widgets where images are missing.
+You can replace these with actual images later.

@@ -1,1 +1,45 @@
-{"firestore":{"database":"(default)","location":"asia-northeast3","rules":"firestore.rules","indexes":"firestore.indexes.json"},"flutter":{"platforms":{"android":{"default":{"projectId":"rumi-talk","appId":"1:814478776151:android:48e29d81dba786b244d012","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"rumi-talk","appId":"1:814478776151:ios:425cd73eeec94f3044d012","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"rumi-talk","configurations":{"android":"1:814478776151:android:48e29d81dba786b244d012","ios":"1:814478776151:ios:425cd73eeec94f3044d012"}}}}}}
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "asia-northeast3",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "rumi-talk",
+          "appId": "1:814478776151:android:48e29d81dba786b244d012",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "rumi-talk",
+          "appId": "1:814478776151:ios:425cd73eeec94f3044d012",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "rumi-talk",
+          "configurations": {
+            "android": "1:814478776151:android:48e29d81dba786b244d012",
+            "ios": "1:814478776151:ios:425cd73eeec94f3044d012"
+          }
+        }
+      }
+    }
+  },
+  "functions": {
+    "source": "functions",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ]
+  }
+}
