@@ -20,13 +20,10 @@ class ChannelPage extends StatefulWidget {
 class _ChannelPageState extends State<ChannelPage> {
   final StreamMessageInputController _messageInputController =
       StreamMessageInputController();
-  final bool _isProcessing = false;
-  late final String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _currentUserId = StreamChat.of(context).currentUser?.id;
   }
 
   void _showProcessingDialog() {
@@ -250,6 +247,7 @@ class _ChannelPageState extends State<ChannelPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xff181818),
       appBar: StreamChannelHeader(
         showBackButton: true,
         onBackPressed: () => Navigator.pop(context),

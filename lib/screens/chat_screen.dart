@@ -50,34 +50,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
 
     return Scaffold(
+      backgroundColor: const Color(0xff181818),
       body: _listController == null
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Custom header
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: const BoxDecoration(
-                    color: Color(0xff242424),
-                  ),
-                  child: SafeArea(
-                    bottom: false,
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            "Joined Events",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
                 // Channel list
                 Expanded(
                   child: StreamChannelListView(
@@ -98,45 +75,40 @@ class _ChatScreenState extends State<ChatScreen> {
                     emptyBuilder: (context) {
                       return Center(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          padding: const EdgeInsets.all(32),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
-                                Icons.chat_bubble_outline,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                "Didn't join an event yet? Don't miss out",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 18,
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xff1a1a1a),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xff2a2a2a), width: 2),
+                                ),
+                                child: const Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 48,
                                   color: Colors.grey,
                                 ),
                               ),
-                              const SizedBox(height: 20),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  // For now, show a placeholder
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Event discovery coming soon!'),
-                                      backgroundColor: Colors.blue,
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.explore),
-                                label: const Text("Discover Events"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 12,
-                                  ),
+                              const SizedBox(height: 24),
+                              const Text(
+                                'No chats yet',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
                                 ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Add friends and start a conversation',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 16,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),
@@ -196,78 +168,98 @@ class _ChatScreenState extends State<ChatScreen> {
     // Adjust opacity if no unread messages
     final opacity = (channel.state?.unreadCount ?? 0) > 0 ? 1.0 : 0.5;
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 15),
-      leading: StreamChannelAvatar(channel: channel),
-      onTap: () {
-        Navigator.of(context)
-            .push(
-              MaterialPageRoute(
-                builder: (_) => StreamChannel(
-                  channel: channel,
-                  child: const ChannelPage(),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xff1a1a1a),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xff2a2a2a), width: 1),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xff333333), width: 2),
+          ),
+          child: StreamChannelAvatar(channel: channel),
+        ),
+        onTap: () {
+          Navigator.of(context)
+              .push(
+                MaterialPageRoute(
+                  builder: (_) => StreamChannel(
+                    channel: channel,
+                    child: const ChannelPage(),
+                  ),
+                ),
+              )
+              .then((_) => _listController!.refresh());
+        },
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Channel Name
+            Flexible(
+              flex: 3,
+              child: StreamChannelName(
+                channel: channel,
+                textStyle: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
                 ),
               ),
-            )
-            .then((_) => _listController!.refresh());
-      },
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Channel Name
-          Flexible(
-            flex: 3,
-            child: StreamChannelName(
-              channel: channel,
-              textStyle: theme.channelPreviewTheme.titleStyle!.copyWith(
-                color: theme.colorTheme.textHighEmphasis.withOpacity(opacity),
+            ),
+            const SizedBox(width: 8),
+            // Last Message Time
+            Flexible(
+              flex: 1,
+              child: StreamChannelInfo(
+                channel: channel,
+                showTypingIndicator: false,
+                textStyle: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          // Last Message Time
-          Flexible(
-            flex: 1,
-            child: StreamChannelInfo(
-              channel: channel,
-              showTypingIndicator: false,
-              textStyle: theme.channelPreviewTheme.subtitleStyle,
+          ],
+        ),
+        subtitle: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Last message text or "message deleted"
+            Flexible(
+              flex: 3,
+              child: Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.grey, fontSize: 14),
+              ),
             ),
-          ),
-        ],
-      ),
-      subtitle: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Last message text or "message deleted"
-          Flexible(
-            flex: 3,
-            child: Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Unread count
-          Flexible(
-            flex: 1,
-            child: (channel.state?.unreadCount ?? 0) > 0
-                ? CircleAvatar(
-                    radius: 10,
-                    backgroundColor: Colors.red,
-                    child: Text(
-                      channel.state!.unreadCount.toString(),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
+            const SizedBox(width: 8),
+            // Unread count
+            Flexible(
+              flex: 1,
+              child: (channel.state?.unreadCount ?? 0) > 0
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xff4f46e5),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  )
-                : const SizedBox(),
-          ),
-        ],
+                      child: Text(
+                        channel.state!.unreadCount.toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                  : const SizedBox(),
+            ),
+          ],
+        ),
       ),
     );
   }

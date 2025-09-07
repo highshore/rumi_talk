@@ -56,5 +56,9 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to update your profile picture.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need access to save your updated profile picture.</string>
 </dict>
 </plist>

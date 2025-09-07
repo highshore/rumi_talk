@@ -1264,12 +1264,19 @@ PODS:
   - Firebase/Functions (12.2.0):
     - Firebase/CoreOnly
     - FirebaseFunctions (~> 12.2.0)
+  - Firebase/Storage (12.2.0):
+    - Firebase/CoreOnly
+    - FirebaseStorage (~> 12.2.0)
   - firebase_auth (6.0.2):
     - Firebase/Auth (= 12.2.0)
     - firebase_core
     - Flutter
   - firebase_core (4.1.0):
     - Firebase/CoreOnly (= 12.2.0)
+    - Flutter
+  - firebase_storage (13.0.1):
+    - Firebase/Storage (= 12.2.0)
+    - firebase_core
     - Flutter
   - FirebaseAppCheckInterop (12.2.0)
   - FirebaseAuth (12.2.0):
@@ -1320,6 +1327,13 @@ PODS:
     - GTMSessionFetcher/Core (< 6.0, >= 3.4)
   - FirebaseMessagingInterop (12.2.0)
   - FirebaseSharedSwift (12.2.0)
+  - FirebaseStorage (12.2.0):
+    - FirebaseAppCheckInterop (~> 12.2.0)
+    - FirebaseAuthInterop (~> 12.2.0)
+    - FirebaseCore (~> 12.2.0)
+    - FirebaseCoreExtension (~> 12.2.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
   - Flutter (1.0.0)
   - google_sign_in_ios (0.0.1):
     - AppAuth (>= 1.7.4)
@@ -1486,6 +1500,8 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - permission_handler_apple (9.3.0):
+    - Flutter
   - photo_manager (3.7.1):
     - Flutter
     - FlutterMacOS
@@ -1523,6 +1539,7 @@ DEPENDENCIES:
   - file_selector_ios (from `.symlinks/plugins/file_selector_ios/ios`)
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
+  - firebase_storage (from `.symlinks/plugins/firebase_storage/ios`)
   - Flutter (from `Flutter`)
   - google_sign_in_ios (from `.symlinks/plugins/google_sign_in_ios/darwin`)
   - image_gallery_saver (from `.symlinks/plugins/image_gallery_saver/ios`)
@@ -1530,6 +1547,7 @@ DEPENDENCIES:
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - photo_manager (from `.symlinks/plugins/photo_manager/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
@@ -1559,6 +1577,7 @@ SPEC REPOS:
     - FirebaseFunctions
     - FirebaseMessagingInterop
     - FirebaseSharedSwift
+    - FirebaseStorage
     - GoogleSignIn
     - GoogleUtilities
     - "gRPC-C++"
@@ -1591,6 +1610,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/firebase_auth/ios"
   firebase_core:
     :path: ".symlinks/plugins/firebase_core/ios"
+  firebase_storage:
+    :path: ".symlinks/plugins/firebase_storage/ios"
   Flutter:
     :path: Flutter
   google_sign_in_ios:
@@ -1605,6 +1626,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/package_info_plus/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  permission_handler_apple:
+    :path: ".symlinks/plugins/permission_handler_apple/ios"
   photo_manager:
     :path: ".symlinks/plugins/photo_manager/ios"
   share_plus:
@@ -1638,6 +1661,7 @@ SPEC CHECKSUMS:
   Firebase: 26f6f8d460603af3df970ad505b16b15f5e2e9a1
   firebase_auth: 9c0ce237c3bdc34c85fec8b87575beda143adba0
   firebase_core: 3ff52146406557dddd01d570e807e203ec7e1302
+  firebase_storage: b75bbed2ad6014962b80951ab5cd179d6ff3f39a
   FirebaseAppCheckInterop: a1b2598c64c5a8c42fd6f6a1c3d0938ae4324678
   FirebaseAuth: 059c11702bdb759bb49b6c7ec6ff67abf21f39c4
   FirebaseAuthInterop: 217702acd4cc6baa98ba9d6c054532e0de0b8a16
@@ -1649,6 +1673,7 @@ SPEC CHECKSUMS:
   FirebaseFunctions: fc68f7e566da9b2eb714f66bc9e633d3111da7fb
   FirebaseMessagingInterop: 913e21aa8526740cd2ac17b30e89dd3e56ff112e
   FirebaseSharedSwift: 52d868d4c269fcb4e4e1310c548435a9c1f46e25
+  FirebaseStorage: f1578d57e1fd3683fc05f5d4d7b24b7490b321ac
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   google_sign_in_ios: b48bb9af78576358a168361173155596c845f0b9
   GoogleSignIn: ce8c89bb9b37fb624b92e7514cc67335d1e277e4
@@ -1665,6 +1690,7 @@ SPEC CHECKSUMS:
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   photo_manager: 1d80ae07a89a67dfbcae95953a1e5a24af7c3e62
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   ReachabilitySwift: 32793e867593cfc1177f5d16491e3a197d2fccda

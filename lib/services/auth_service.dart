@@ -52,14 +52,33 @@ class AuthService {
   // Save user data to Firestore
   Future<void> _saveUserToFirestore(User user) async {
     try {
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'email': user.email,
-        'displayName': user.displayName,
-        'photoURL': user.photoURL,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastLoginAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final docRef = _firestore.collection('users').doc(user.uid);
+      final snapshot = await docRef.get();
+
+      if (!snapshot.exists) {
+        // Create a new profile with defaults (excluding fields you don't need)
+        await docRef.set({
+          'uid': user.uid,
+          'email': user.email ?? '',
+          'displayName': user.displayName ?? '',
+          'photoURL': user.photoURL ?? '',
+          'profileImage': user.photoURL ?? '',
+          'interests': <String>[],
+          'gender': '',
+          'mbtiType': '',
+          'dateOfBirth': null,
+          'friends': <String>[],
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLoginAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } else {
+        // Update login timestamp and ensure streamUserId is present
+        await docRef.set({
+          'email': user.email ?? '',
+          'photoURL': user.photoURL ?? '',
+          'lastLoginAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       print('Error saving user to Firestore: $e');
     }

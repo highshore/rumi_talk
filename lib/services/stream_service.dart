@@ -129,7 +129,8 @@ class StreamService {
   }
 
   /// Static methods for backwards compatibility and easier access
-  static const String _defaultApiKey = 'YOUR_STREAM_API_KEY'; // Replace in dev or pass via --dart-define
+  // Stream API key is public by design (not a secret). Set default so dev runs don't depend on --dart-define
+  static const String _defaultApiKey = 'qrsw4u3qg89f';
   static stream_chat.StreamChatClient? _client;
 
   static stream_chat.StreamChatClient get staticClient {

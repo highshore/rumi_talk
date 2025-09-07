@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_app/screens/home_screen.dart';
+import 'package:firebase_app/screens/friends_screen.dart';
 import 'package:firebase_app/screens/chat_screen.dart';
 import 'package:firebase_app/screens/profile_screen.dart';
 
@@ -37,7 +37,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     // List of screens for the simplified navbar
     final List<Widget> screens = [
-      const HomeScreen(), // index 0
+      const FriendsScreen(), // index 0 (Friends page)
       const ChatScreen(), // index 1
       ProfileScreen(userId: _auth.currentUser!.uid), // index 2
     ];
@@ -45,8 +45,8 @@ class _MainScreenState extends State<MainScreen> {
     // List of BottomNavigationBarItems for the simplified navbar
     final List<BottomNavigationBarItem> bottomNavItems = [
       const BottomNavigationBarItem(
-        icon: Icon(Icons.home),
-        label: 'Home',
+        icon: Icon(Icons.people_alt_rounded),
+        label: 'Friends',
       ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.chat_bubble_rounded),
@@ -63,18 +63,19 @@ class _MainScreenState extends State<MainScreen> {
       _currentIndex = 0;
     }
 
+    final titles = <String>['Friends', 'Chats', 'Profile'];
+
     return Scaffold(
+      backgroundColor: const Color(0xff181818),
       appBar: AppBar(
-        title: const Text(
-          'RumiTalk',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color(0xff242424),
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        automaticallyImplyLeading: false,
         centerTitle: true,
+        title: Text(
+          titles[_currentIndex],
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
       ),
       body: screens[_currentIndex], // Display the selected screen
       bottomNavigationBar: BottomNavigationBar(

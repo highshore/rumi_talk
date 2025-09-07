@@ -31,8 +31,53 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'RumiTalk',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xff181818),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xff4f46e5),
+          secondary: Color(0xff7c3aed),
+          surface: Color(0xff1a1a1a),
+          background: Color(0xff181818),
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: Colors.white,
+          onBackground: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+          iconTheme: IconThemeData(color: Colors.white),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          hintStyle: const TextStyle(color: Colors.grey),
+          filled: true,
+          fillColor: const Color(0xff0f0f0f),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: Colors.white),
+          bodySmall: TextStyle(color: Colors.white70),
+          titleMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
       ),
       builder: (context, child) => StreamChat(
         client: StreamService.staticClient,

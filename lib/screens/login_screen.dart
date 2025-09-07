@@ -161,20 +161,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                     valueColor: AlwaysStoppedAnimation<Color>(
                                         Color(0xff4285F4)),
                                   )
-                                : ElevatedButton(
-                                    onPressed: () => _loginWithGoogle(context),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      foregroundColor: Colors.black87,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 15,
-                                        horizontal: 30,
+                                : Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xff4f46e5), Color(0xff7c3aed)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      elevation: 3,
                                     ),
+                                    child: ElevatedButton(
+                                      onPressed: () => _loginWithGoogle(context),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 15,
+                                          horizontal: 30,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       mainAxisAlignment:
@@ -204,12 +212,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
                                             letterSpacing: -0.3,
-                                            color: Colors.black87,
+                                            color: Colors.white,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
+                                ),
                             if (_error != null) ...[
                               const SizedBox(height: 20),
                               Padding(
