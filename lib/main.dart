@@ -10,16 +10,15 @@ import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/auth_service.dart';
 import 'services/stream_service.dart';
+import 'services/friend_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   // Initialize Stream Chat
   await StreamService.initialize();
-  
+
   runApp(const MyApp());
 }
 
@@ -37,11 +36,9 @@ class MyApp extends StatelessWidget {
           primary: Color(0xff4f46e5),
           secondary: Color(0xff7c3aed),
           surface: Color(0xff1a1a1a),
-          background: Color(0xff181818),
           onPrimary: Colors.white,
           onSecondary: Colors.white,
           onSurface: Colors.white,
-          onBackground: Colors.white,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
@@ -62,7 +59,10 @@ class MyApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -70,19 +70,22 @@ class MyApp extends StatelessWidget {
             shadowColor: Colors.transparent,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
         textTheme: const TextTheme(
           bodyMedium: TextStyle(color: Colors.white),
           bodySmall: TextStyle(color: Colors.white70),
-          titleMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          titleMedium: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
-      builder: (context, child) => StreamChat(
-        client: StreamService.staticClient,
-        child: child!,
-      ),
+      builder: (context, child) =>
+          StreamChat(client: StreamService.staticClient, child: child!),
       home: const AuthWrapper(),
       routes: {
         '/login': (context) => const LoginScreen(),
@@ -102,10 +105,11 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _isConnectingStream = false;
   bool _didConnectStream = false;
+  bool _didMigrateFriendships = false;
 
   Future<void> _connectStreamUser() async {
     if (_isConnectingStream) return;
-    
+
     setState(() {
       _isConnectingStream = true;
     });
@@ -118,7 +122,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         firestore: FirebaseFirestore.instance,
         functions: FirebaseFunctions.instance,
       );
-      
+
       await streamService.connectStreamUser();
     } catch (e) {
       print('Failed to connect Stream user: $e');
@@ -142,7 +146,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return StreamBuilder<firebase_auth.User?>(
       stream: AuthService().authStateChanges,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting || _isConnectingStream) {
+        if (snapshot.connectionState == ConnectionState.waiting ||
+            _isConnectingStream) {
           return const Scaffold(
             body: Center(
               child: Column(
@@ -156,14 +161,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
             ),
           );
         }
-        
+
         if (snapshot.hasData) {
           // User is signed in - connect to Stream once per session/user
-          final currentStreamUser = StreamService.staticClient.state.currentUser;
-          if (!_didConnectStream || currentStreamUser?.id != snapshot.data!.uid) {
+          final currentStreamUser =
+              StreamService.staticClient.state.currentUser;
+          if (!_didConnectStream ||
+              currentStreamUser?.id != snapshot.data!.uid) {
             _didConnectStream = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _connectStreamUser();
+            });
+          }
+
+          // Trigger one-time friendships migration per session
+          if (!_didMigrateFriendships) {
+            _didMigrateFriendships = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              try {
+                await FriendService().migrateLegacyFriendData();
+              } catch (e) {
+                // best-effort; ignore errors
+              }
             });
           }
           return const MainScreen();
@@ -181,4 +200,3 @@ class _AuthWrapperState extends State<AuthWrapper> {
     );
   }
 }
-

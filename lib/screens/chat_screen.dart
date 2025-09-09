@@ -15,28 +15,30 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   StreamChannelListController? _listController;
   late Filter _defaultFilter;
-  bool _isControllerInitialized = false;
+  String _searchQuery = '';
+  bool _showUnreadOnly = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_isControllerInitialized) {
+    if (_listController == null) {
       final userId = StreamChat.of(context).currentUser?.id;
       if (userId == null) {
-        // Handle the null user scenario appropriately
-        print('Error: Current user is null');
+        // Will try again on next dependency change/build
         return;
       }
-
       _defaultFilter = Filter.in_('members', [userId]);
-
-      _listController = StreamChannelListController(
-        client: StreamChat.of(context).client,
-        filter: _defaultFilter,
-        channelStateSort: const [SortOption('last_message_at')],
-        limit: 20,
-      );
-      _isControllerInitialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _listController != null) return;
+        setState(() {
+          _listController = StreamChannelListController(
+            client: StreamChat.of(context).client,
+            filter: _defaultFilter,
+            channelStateSort: const [SortOption('last_message_at')],
+            limit: 20,
+          );
+        });
+      });
     }
   }
 
@@ -48,19 +50,71 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: const Color(0xff181818),
       body: _listController == null
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                // Header like Kakao/WhatsApp
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Column(
+                      children: [
+                        // Search bar
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xff1f1f1f),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xff2a2a2a),
+                              width: 1,
+                            ),
+                          ),
+                          child: TextField(
+                            onChanged: (v) =>
+                                setState(() => _searchQuery = v.trim()),
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              hintText: 'Search',
+                              prefixIcon: Icon(
+                                Icons.search,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Filter chips
+                        Row(
+                          children: [
+                            ChoiceChip(
+                              label: const Text('All'),
+                              selected: !_showUnreadOnly,
+                              onSelected: (val) =>
+                                  setState(() => _showUnreadOnly = false),
+                            ),
+                            const SizedBox(width: 8),
+                            ChoiceChip(
+                              label: const Text('Unread'),
+                              selected: _showUnreadOnly,
+                              onSelected: (val) =>
+                                  setState(() => _showUnreadOnly = true),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
                 // Channel list
                 Expanded(
                   child: StreamChannelListView(
                     controller: _listController!,
                     onChannelTap: (channel) {
-                      // Navigate to ChannelPage wrapped with StreamChannel
                       Navigator.of(context)
                           .push(
                             MaterialPageRoute(
@@ -84,7 +138,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                 decoration: BoxDecoration(
                                   color: const Color(0xff1a1a1a),
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: const Color(0xff2a2a2a), width: 2),
+                                  border: Border.all(
+                                    color: const Color(0xff2a2a2a),
+                                    width: 2,
+                                  ),
                                 ),
                                 child: const Icon(
                                   Icons.chat_bubble_outline,
@@ -130,15 +187,32 @@ class _ChatScreenState extends State<ChatScreen> {
     int index,
     StreamChannelListTile defaultTile,
   ) {
-    final theme = StreamChatTheme.of(context);
+    StreamChatTheme.of(context);
     final channel = channels[index];
 
-    // Grab the last message including deleted ones
+    // Optional filters (search / unread) applied client-side
+    final channelName = channel.name?.toLowerCase() ?? '';
+    final members =
+        channel.state?.members
+            .map((m) => m.user?.name ?? m.userId)
+            .join(', ')
+            .toLowerCase() ??
+        '';
     final lastMessage = channel.state?.messages.reversed.firstWhereOrNull(
       (_) => true,
     );
+    final lastText = lastMessage?.text?.toLowerCase() ?? '';
+    final matchesSearch = _searchQuery.isEmpty
+        ? true
+        : (channelName.contains(_searchQuery.toLowerCase()) ||
+              members.contains(_searchQuery.toLowerCase()) ||
+              lastText.contains(_searchQuery.toLowerCase()));
+    final unread = channel.state?.unreadCount ?? 0;
+    if (!matchesSearch || (_showUnreadOnly && unread == 0)) {
+      return const SizedBox.shrink();
+    }
 
-    // Determine the subtitle for the channel
+    // Determine the subtitle for the channel (typing indicator, attachments, last text)
     String subtitle;
     if (lastMessage == null) {
       subtitle = 'nothing yet';
@@ -165,99 +239,109 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     }
 
-    // Adjust opacity if no unread messages
-    final opacity = (channel.state?.unreadCount ?? 0) > 0 ? 1.0 : 0.5;
+    // Format time like WhatsApp/Kakao
+    String timeLabel = '';
+    final lmAt = lastMessage?.createdAt;
+    if (lmAt != null) {
+      final now = DateTime.now();
+      final local = lmAt.toLocal();
+      final isSameDay =
+          now.year == local.year &&
+          now.month == local.month &&
+          now.day == local.day;
+      if (isSameDay) {
+        final hh = local.hour % 12 == 0 ? 12 : local.hour % 12;
+        final mm = local.minute.toString().padLeft(2, '0');
+        final ampm = local.hour >= 12 ? 'PM' : 'AM';
+        timeLabel = '$hh:$mm $ampm';
+      } else {
+        timeLabel = '${local.month}/${local.day}/${local.year % 100}';
+      }
+    }
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xff1a1a1a),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xff2a2a2a), width: 1),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xff333333), width: 2),
-          ),
-          child: StreamChannelAvatar(channel: channel),
-        ),
-        onTap: () {
-          Navigator.of(context)
-              .push(
-                MaterialPageRoute(
-                  builder: (_) => StreamChannel(
-                    channel: channel,
-                    child: const ChannelPage(),
-                  ),
-                ),
-              )
-              .then((_) => _listController!.refresh());
-        },
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    // Adjust opacity if no unread messages
+
+    final isUnread = unread > 0;
+    return InkWell(
+      onTap: () {
+        Navigator.of(context)
+            .push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    StreamChannel(channel: channel, child: const ChannelPage()),
+              ),
+            )
+            .then((_) => _listController!.refresh());
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: const BoxDecoration(color: Colors.transparent),
+        child: Row(
           children: [
-            // Channel Name
-            Flexible(
-              flex: 3,
-              child: StreamChannelName(
-                channel: channel,
-                textStyle: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Last Message Time
-            Flexible(
-              flex: 1,
-              child: StreamChannelInfo(
-                channel: channel,
-                showTypingIndicator: false,
-                textStyle: const TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Last message text or "message deleted"
-            Flexible(
-              flex: 3,
-              child: Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Unread count
-            Flexible(
-              flex: 1,
-              child: (channel.state?.unreadCount ?? 0) > 0
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xff4f46e5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        channel.state!.unreadCount.toString(),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+            // Avatar (use Stream default sizing/behavior for best fit)
+            StreamChannelAvatar(channel: channel),
+            const SizedBox(width: 12),
+            // Middle: name + last message
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StreamChannelName(
+                          channel: channel,
+                          textStyle: TextStyle(
+                            color: Colors.white,
+                            fontWeight: isUnread
+                                ? FontWeight.w700
+                                : FontWeight.w600,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
-                    )
-                  : const SizedBox(),
+                      const SizedBox(width: 8),
+                      Text(
+                        timeLabel,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isUnread ? Colors.white : Colors.white70,
+                      fontSize: 14,
+                      fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
+            // Unread badge
+            if (isUnread)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xff4f46e5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  unread.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

@@ -8,10 +8,59 @@ service cloud.firestore {
       allow read: if request.auth != null;
 
       // Allow a user to create/update their own profile
-      allow create, update: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid &&
+        (
+          // Not modifying legacy arrays
+          !(request.resource.data.diff(resource.data).changedKeys().hasAny([
+            'friends', 'friend_requests_sent', 'friend_requests_received'
+          ]))
+          ||
+          // OR explicitly clearing legacy arrays to empty for migration/cleanup
+          (
+            (!request.resource.data.keys().hasAny(['friends']) || request.resource.data.friends.size() == 0) &&
+            (!request.resource.data.keys().hasAny(['friend_requests_sent']) || request.resource.data.friend_requests_sent.size() == 0) &&
+            (!request.resource.data.keys().hasAny(['friend_requests_received']) || request.resource.data.friend_requests_received.size() == 0)
+          )
+        );
 
       // Allow a user to delete their own profile
       allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Friendships collection
+    match /friendships/{pairId} {
+      // Allow get pre-create during transactions, or read for participants
+      allow get: if request.auth != null && (
+        !exists(/databases/$(database)/documents/friendships/$(pairId)) ||
+        request.auth.uid in resource.data.participants
+      );
+
+      // Queries (list) are allowed only for participant documents
+      allow list, read: if request.auth != null &&
+        request.auth.uid in resource.data.participants;
+
+      // Create pending requests by requester (client-only flow)
+      allow create: if request.auth != null &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.requester == request.auth.uid &&
+        request.resource.data.recipient is string &&
+        request.resource.data.requester != request.resource.data.recipient &&
+        request.resource.data.participants.size() == 2 &&
+        request.auth.uid in request.resource.data.participants;
+
+      // Only recipient can accept a pending request
+      allow update: if request.auth != null &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'accepted' &&
+        request.auth.uid == resource.data.recipient &&
+        request.resource.data.participants == resource.data.participants &&
+        request.resource.data.requester == resource.data.requester &&
+        request.resource.data.recipient == resource.data.recipient;
+
+      // Pending can be cancelled by requester or declined by recipient
+      allow delete: if request.auth != null &&
+        resource.data.status == 'pending' &&
+        (request.auth.uid == resource.data.requester || request.auth.uid == resource.data.recipient);
     }
 
     // Events collection (read-only from client for listing/counts)

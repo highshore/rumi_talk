@@ -29,16 +29,26 @@ class StreamService {
       }
 
       // Fetch user data from Firestore
+      String resolvedLanguage = 'en';
       String? displayNameFromDb;
       String? imageFromDb;
       try {
-        final userDoc =
-            await firestore.collection('users').doc(firebaseUser.uid).get();
+        final userDoc = await firestore
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .get();
         if (userDoc.exists) {
           final userData = userDoc.data()!;
           print('User data from Firestore: $userData');
           displayNameFromDb = userData['displayName'] as String?;
-          imageFromDb = (userData['profileImage'] ?? userData['avatarUrl']) as String?;
+          imageFromDb =
+              (userData['profileImage'] ?? userData['avatarUrl']) as String?;
+          // Prefer explicit 'language', otherwise fall back to 'targetLang'
+          final String? profileLanguage = (userData['language'] as String?)
+              ?.toLowerCase();
+          final String? profileTarget = (userData['targetLang'] as String?)
+              ?.toLowerCase();
+          resolvedLanguage = (profileLanguage ?? profileTarget ?? 'en');
         } else {
           // ignore: avoid_print
           print('No user document found in Firestore, using Firebase profile');
@@ -53,9 +63,7 @@ class StreamService {
       try {
         print('Calling generateStreamToken function...');
         final callable = functions.httpsCallable('generateStreamToken');
-        final result = await callable.call({
-          'userId': firebaseUser.uid,
-        });
+        final result = await callable.call({'userId': firebaseUser.uid});
         print('Stream token response: ${result.data}');
         streamToken = result.data['token'] as String;
       } catch (e) {
@@ -71,16 +79,16 @@ class StreamService {
         id: firebaseUser.uid,
         name: displayNameFromDb ?? firebaseUser.displayName,
         image: imageFromDb ?? firebaseUser.photoURL,
+        language: resolvedLanguage,
         extraData: {
           'email': firebaseUser.email,
+          // Persist the language we chose so it's visible in user object data
+          'language': resolvedLanguage,
         },
       );
 
       await client.disconnectUser(); // Disconnect any existing connection
-      await client.connectUser(
-        streamUser,
-        streamToken,
-      );
+      await client.connectUser(streamUser, streamToken);
       print('Successfully connected to Stream');
     } catch (e, stackTrace) {
       print('Error connecting Stream user: $e');
@@ -95,11 +103,7 @@ class StreamService {
     if (user == null) return;
 
     await client.updateUser(
-      stream_chat.User(
-        id: user.uid,
-        name: name,
-        image: image,
-      ),
+      stream_chat.User(id: user.uid, name: name, image: image),
     );
   }
 
@@ -135,7 +139,9 @@ class StreamService {
 
   static stream_chat.StreamChatClient get staticClient {
     if (_client == null) {
-      throw Exception('Stream client not initialized. Call initialize() first.');
+      throw Exception(
+        'Stream client not initialized. Call initialize() first.',
+      );
     }
     return _client!;
   }
@@ -146,7 +152,9 @@ class StreamService {
     final apiKey = _resolveApiKey();
     if (apiKey == _defaultApiKey) {
       // ignore: avoid_print
-      print('StreamService: Missing STREAM_API_KEY. Provide with --dart-define=STREAM_API_KEY=YOUR_KEY');
+      print(
+        'StreamService: Missing STREAM_API_KEY. Provide with --dart-define=STREAM_API_KEY=YOUR_KEY',
+      );
     }
     _client = stream_chat.StreamChatClient(
       apiKey,
@@ -155,7 +163,10 @@ class StreamService {
   }
 
   static String _resolveApiKey() {
-    const String keyFromEnv = String.fromEnvironment('STREAM_API_KEY', defaultValue: '');
+    const String keyFromEnv = String.fromEnvironment(
+      'STREAM_API_KEY',
+      defaultValue: '',
+    );
     if (keyFromEnv.isNotEmpty) return keyFromEnv;
     return _defaultApiKey;
   }

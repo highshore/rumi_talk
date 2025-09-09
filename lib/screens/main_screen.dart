@@ -3,14 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_app/screens/friends_screen.dart';
 import 'package:firebase_app/screens/chat_screen.dart';
 import 'package:firebase_app/screens/profile_screen.dart';
+import 'package:firebase_app/screens/requests_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
 
-  const MainScreen({
-    super.key,
-    this.initialIndex = 0,
-  });
+  const MainScreen({super.key, this.initialIndex = 0});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -52,10 +50,7 @@ class _MainScreenState extends State<MainScreen> {
         icon: Icon(Icons.chat_bubble_rounded),
         label: 'Chat',
       ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.person),
-        label: 'Profile',
-      ),
+      const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
     ];
 
     // Ensure current index is within valid range
@@ -74,8 +69,24 @@ class _MainScreenState extends State<MainScreen> {
         centerTitle: true,
         title: Text(
           titles[_currentIndex],
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        actions: [
+          if (_currentIndex == 0)
+            IconButton(
+              icon: const Icon(Icons.group_add, color: Colors.white),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const FriendRequestsScreen(),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: screens[_currentIndex], // Display the selected screen
       bottomNavigationBar: BottomNavigationBar(
