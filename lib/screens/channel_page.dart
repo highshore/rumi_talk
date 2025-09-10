@@ -26,8 +26,6 @@ class _ChannelPageState extends State<ChannelPage> {
   final AiService _ai = AiService();
   final GlobalKey<_CustomTranslateInputState> _inputKey =
       GlobalKey<_CustomTranslateInputState>();
-  final Set<String> _revealedOriginal = {};
-  final Set<String> _translatingMessages = {};
 
   void _showProcessingDialog() {
     if (!mounted) return;
@@ -232,23 +230,6 @@ class _ChannelPageState extends State<ChannelPage> {
     );
   }
 
-  Future<void> _translateMessage(String messageId, String langCode) async {
-    if (_translatingMessages.contains(messageId)) return;
-    setState(() => _translatingMessages.add(messageId));
-    try {
-      final channel = StreamChannel.of(context).channel;
-      await channel.translateMessage(messageId, langCode);
-      // Stream will emit message.updated; UI will refresh automatically
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to translate: $e')));
-    } finally {
-      if (mounted) setState(() => _translatingMessages.remove(messageId));
-    }
-  }
-
   Future<void> _showAutoTranslateSheet() async {
     final channel = StreamChannel.of(context).channel;
     final currentUserLang =
@@ -258,6 +239,8 @@ class _ChannelPageState extends State<ChannelPage> {
     final currentLang =
         (channel.extraData['auto_translation_language'] as String?) ??
         currentUserLang;
+    final practiceDialogEnabled =
+        (channel.extraData['practice_dialog_enabled'] as bool?) ?? true;
 
     await showModalBottomSheet(
       context: context,
@@ -269,6 +252,7 @@ class _ChannelPageState extends State<ChannelPage> {
         bool localEnabled = enabled;
         String localLang = currentLang;
         bool saving = false;
+        bool localPractice = practiceDialogEnabled;
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             return Padding(
@@ -296,6 +280,24 @@ class _ChannelPageState extends State<ChannelPage> {
                       Switch(
                         value: localEnabled,
                         onChanged: (v) => setModalState(() => localEnabled = v),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Practice dialog before sending',
+                          style: TextStyle(color: Colors.white70),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Switch(
+                        value: localPractice,
+                        onChanged: (v) =>
+                            setModalState(() => localPractice = v),
                       ),
                     ],
                   ),
@@ -340,15 +342,14 @@ class _ChannelPageState extends State<ChannelPage> {
                                   await channel.update({
                                     'auto_translation_enabled': localEnabled,
                                     'auto_translation_language': localLang,
+                                    'practice_dialog_enabled': localPractice,
                                   });
                                   if (!mounted) return;
                                   Navigator.pop(ctx);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        localEnabled
-                                            ? 'Auto-translation enabled (${_mapIsoToName(localLang)})'
-                                            : 'Auto-translation disabled',
+                                        'Saved: Auto-translation ${localEnabled ? 'ON' : 'OFF'} (${_mapIsoToName(localLang)}), Practice dialog ${localPractice ? 'ON' : 'OFF'}',
                                       ),
                                     ),
                                   );
@@ -431,273 +432,38 @@ class _ChannelPageState extends State<ChannelPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: StreamMessageListView(
-              messageBuilder: (context, details, messages, defaultWidget) {
-                final msg = details.message;
-                final key = msg.id.isNotEmpty
-                    ? msg.id
-                    : '${msg.createdAt.millisecondsSinceEpoch}-${msg.hashCode}';
-                final isMe =
-                    msg.user?.id == StreamChat.of(context).currentUser?.id;
-
-                // Prefer built-in Stream i18n translations if present
-                final Map<String, dynamic>? i18n = msg.i18n?.map(
-                  (k, v) => MapEntry(k, v),
-                );
-                final userLangCode =
-                    StreamChat.of(context).currentUser?.language ?? 'en';
-                final translatedText = i18n != null
-                    ? (i18n['${userLangCode}_text'] as String?)
-                    : null;
-                final originalLangCode = i18n != null
-                    ? (i18n['language'] as String?)
-                    : null;
-                final i18nOriginalText =
-                    (i18n != null && originalLangCode != null)
-                    ? (i18n['${originalLangCode}_text'] as String?)
-                    : null;
-
-                // Legacy/custom extraData support (our practice flow)
-                final originalFromExtra =
-                    msg.extraData['original_text'] as String?;
-                final translatedFromExtra =
-                    msg.extraData['translated_text'] as String?;
-
-                final hasOnDemandTranslation =
-                    translatedText != null &&
-                    (originalLangCode != userLangCode);
-                final canTranslateOnDemand =
-                    translatedText == null &&
-                    msg.id.isNotEmpty &&
-                    (msg.text ?? '').isNotEmpty;
-
-                // Combined bubble decision: prefer i18n; otherwise fallback to extraData
-                String? combinedTranslated;
-                String? combinedOriginal;
-                if (hasOnDemandTranslation) {
-                  combinedTranslated = translatedText.trim();
-                  combinedOriginal = (i18nOriginalText ?? '').trim();
-                }
-                if ((combinedTranslated == null ||
-                        combinedTranslated.isEmpty) ||
-                    (combinedOriginal == null || combinedOriginal.isEmpty)) {
-                  final t = (translatedFromExtra ?? '').trim();
-                  final o = (originalFromExtra ?? '').trim();
-                  if (t.isNotEmpty && o.isNotEmpty) {
-                    combinedTranslated = t;
-                    combinedOriginal = o;
-                  }
-                }
-                final showCombined =
-                    (combinedTranslated != null &&
-                    combinedTranslated.isNotEmpty &&
-                    combinedOriginal != null &&
-                    combinedOriginal.isNotEmpty);
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // If there is a translation (i18n or extraData) and it's a text-only message,
-                    // render both translated and original in the same bubble.
-                    if (showCombined && (msg.attachments.isEmpty))
-                      _buildCombinedTranslationBubble(
-                        context: context,
-                        message: msg,
-                        isCurrentUser: isMe,
-                        translatedText: combinedTranslated,
-                        originalText: combinedOriginal,
-                      )
-                    else
-                      defaultWidget,
-                    // Place a compact metadata row: time + Translate
-                    if (canTranslateOnDemand)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: 2,
-                          left: isMe ? 80 : 12,
-                          right: isMe ? 12 : 80,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: isMe
-                              ? MainAxisAlignment.end
-                              : MainAxisAlignment.start,
-                          children: [
-                            // time label
-                            Builder(
-                              builder: (_) {
-                                String timeLabel = '';
-                                final local = msg.createdAt.toLocal();
-                                final hh = local.hour % 12 == 0
-                                    ? 12
-                                    : local.hour % 12;
-                                final mm = local.minute.toString().padLeft(
-                                  2,
-                                  '0',
-                                );
-                                final ampm = local.hour >= 12 ? 'PM' : 'AM';
-                                timeLabel = '$hh:$mm $ampm';
-                                return Text(
-                                  timeLabel,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white38,
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(width: 8),
-                            TextButton.icon(
-                              onPressed: _translatingMessages.contains(key)
-                                  ? null
-                                  : () =>
-                                        _translateMessage(msg.id, userLangCode),
-                              icon: _translatingMessages.contains(key)
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.translate_rounded,
-                                      size: 14,
-                                      color: Colors.white54,
-                                    ),
-                              label: Text(
-                                'Translate',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white54,
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 0,
-                                ),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-                          ],
-                        ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Column(
+          children: [
+            Expanded(
+              child: StreamMessageListView(
+                markReadWhenAtTheBottom: true,
+                messageBuilder: (context, details, messages, defaultMessage) {
+                  // Use the default message but hide the username
+                  return StreamMessageWidget(
+                    message: details.message,
+                    messageTheme: StreamMessageThemeData(
+                      messageAuthorStyle: const TextStyle(
+                        fontSize: 0,
+                        height: 0,
                       ),
-                    // Legacy custom translation: if we didn't render a combined bubble, allow toggling
-                    if (!showCombined &&
-                        originalFromExtra != null &&
-                        originalFromExtra.isNotEmpty)
-                      Builder(
-                        builder: (_) {
-                          final legacyShow = _revealedOriginal.contains(
-                            '${key}-legacy',
-                          );
-                          return legacyShow
-                              ? Padding(
-                                  padding: EdgeInsets.only(
-                                    top: 4,
-                                    left: isMe ? 80 : 12,
-                                    right: isMe ? 12 : 80,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: isMe
-                                        ? CrossAxisAlignment.end
-                                        : CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xff1f1f1f),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        child: Text(
-                                          originalFromExtra,
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 0,
-                                          ),
-                                        ),
-                                        onPressed: () => setState(
-                                          () => _revealedOriginal.remove(
-                                            '${key}-legacy',
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Hide',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.white54,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 2,
-                                    left: 12,
-                                    right: 12,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: isMe
-                                        ? MainAxisAlignment.end
-                                        : MainAxisAlignment.start,
-                                    children: [
-                                      TextButton(
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 0,
-                                          ),
-                                        ),
-                                        onPressed: () => setState(
-                                          () => _revealedOriginal.add(
-                                            '${key}-legacy',
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'View original',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.white54,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                        },
-                      ),
-                  ],
-                );
-              },
+                      createdAtStyle: StreamChatTheme.of(
+                        context,
+                      ).textTheme.footnote.copyWith(color: Colors.white38),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          _CustomTranslateInput(
-            key: _inputKey,
-            controller: _messageInputController,
-            onPickAttachment: _showAttachmentPicker,
-            ai: _ai,
-          ),
-        ],
+            _CustomTranslateInput(
+              key: _inputKey,
+              controller: _messageInputController,
+              onPickAttachment: _showAttachmentPicker,
+              ai: _ai,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -773,9 +539,13 @@ class _CustomTranslateInputState extends State<_CustomTranslateInput> {
     final attachments = widget.controller.attachments;
     if (text.isEmpty && attachments.isEmpty) return;
 
+    // Practice dialog may be disabled per-channel setting
+    final practiceEnabled =
+        (channel.extraData['practice_dialog_enabled'] as bool?) ?? true;
+
     // Practice dialog: translate first, then ask user to type the translation
     Map<String, dynamic>? practiceResult;
-    if (text.isNotEmpty) {
+    if (text.isNotEmpty && practiceEnabled) {
       practiceResult = await _showPracticeDialog(originalText: text);
       if (!mounted || practiceResult == null) return; // cancelled
     }
@@ -798,8 +568,10 @@ class _CustomTranslateInputState extends State<_CustomTranslateInput> {
           ),
         );
       } else {
-        // attachments only
-        await channel.sendMessage(Message(text: '', attachments: attachments));
+        // No dialog mode: send raw input immediately (no translation)
+        await channel.sendMessage(
+          Message(text: text, attachments: attachments),
+        );
       }
       widget.controller.clear();
       _textController.clear();
@@ -1073,56 +845,3 @@ class _CustomTranslateInputState extends State<_CustomTranslateInput> {
     }
   }
 }
-
-Widget _buildCombinedTranslationBubble({
-  required BuildContext context,
-  required Message message,
-  required bool isCurrentUser,
-  required String translatedText,
-  required String originalText,
-}) {
-  final theme = StreamChatTheme.of(context);
-  final bubbleColor = isCurrentUser
-      ? theme.ownMessageTheme.messageBackgroundColor
-      : theme.otherMessageTheme.messageBackgroundColor;
-  final textStyle = isCurrentUser
-      ? theme.ownMessageTheme.messageTextStyle
-      : theme.otherMessageTheme.messageTextStyle;
-
-  final combined = Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(translatedText.trim(), style: textStyle),
-      const SizedBox(height: 4),
-      Opacity(
-        opacity: 0.5,
-        child: Text(
-          (originalText.isNotEmpty ? originalText : (message.text ?? ''))
-              .trim(),
-          style: textStyle,
-        ),
-      ),
-    ],
-  );
-
-  final bubble = Container(
-    decoration: BoxDecoration(
-      color: bubbleColor,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    child: combined,
-  );
-
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-    child: Row(
-      mainAxisAlignment: isCurrentUser
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
-      children: [Flexible(child: bubble)],
-    ),
-  );
-}
-
-// (moved helper methods into State class above to avoid lints)

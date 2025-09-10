@@ -25,6 +25,11 @@ service cloud.firestore {
 
       // Allow a user to delete their own profile
       allow delete: if request.auth != null && request.auth.uid == uid;
+
+      // Saved messages subcollection (owner only)
+      match /saved_messages/{savedId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == uid;
+      }
     }
 
     // Friendships collection

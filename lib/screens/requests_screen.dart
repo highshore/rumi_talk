@@ -38,151 +38,86 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
           : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
                   .collection('friendships')
-                  .where('recipient', isEqualTo: uid)
+                  .where('participants', arrayContains: uid)
                   .where('status', isEqualTo: 'pending')
                   .snapshots(),
-              builder: (context, receivedSnap) {
-                if (receivedSnap.hasError) {
-                  return const Center(
+              builder: (context, snap) {
+                if (snap.hasError) {
+                  return Center(
                     child: Text(
-                      'Error loading requests',
-                      style: TextStyle(color: Colors.white),
+                      'Error loading requests: ${snap.error}',
+                      style: const TextStyle(color: Colors.white),
                     ),
                   );
                 }
-                if (!receivedSnap.hasData) {
+                if (!snap.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final receivedDocs = receivedSnap.data!.docs;
 
-                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance
-                      .collection('friendships')
-                      .where('requester', isEqualTo: uid)
-                      .where('status', isEqualTo: 'pending')
-                      .snapshots(),
-                  builder: (context, sentSnap) {
-                    if (sentSnap.hasError) {
-                      return const Center(
-                        child: Text(
-                          'Error loading requests',
-                          style: TextStyle(color: Colors.white),
+                final docs = snap.data!.docs;
+
+                final List<String> receivedIds = [];
+                final List<String> sentIds = [];
+                for (final d in docs) {
+                  final data = d.data();
+                  final String requester = (data['requester'] ?? '') as String;
+                  final String recipient = (data['recipient'] ?? '') as String;
+                  if (recipient == uid) {
+                    receivedIds.add(requester);
+                  }
+                  if (requester == uid) {
+                    sentIds.add(recipient);
+                  }
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    const Text(
+                      'Received',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    if (receivedIds.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff1a1a1a),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xff2a2a2a)),
                         ),
-                      );
-                    }
-                    if (!sentSnap.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final sentDocs = sentSnap.data!.docs;
-
-                    final receivedIds = receivedDocs
-                        .map((d) => (d.data()['requester'] as String))
-                        .toList();
-                    final sentIds = sentDocs
-                        .map((d) => (d.data()['recipient'] as String))
-                        .toList();
-
-                    return ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        const Text(
-                          'Received',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        child: const Text(
+                          'No incoming requests',
+                          style: TextStyle(color: Colors.white54),
                         ),
-                        const SizedBox(height: 8),
-                        if (receivedIds.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xff1a1a1a),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xff2a2a2a),
-                              ),
-                            ),
-                            child: const Text(
-                              'No incoming requests',
-                              style: TextStyle(color: Colors.white54),
-                            ),
-                          )
-                        else
-                          _UsersList(
-                            userIds: receivedIds,
-                            trailingBuilder: (context, uid) => Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                TextButton(
-                                  onPressed: () async {
-                                    try {
-                                      await _friendService.acceptFriendRequest(
-                                        fromUid: uid,
-                                      );
-                                    } catch (e) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(content: Text('Failed: $e')),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  child: const Text('Accept'),
-                                ),
-                                TextButton(
-                                  onPressed: () async {
-                                    try {
-                                      await _friendService.declineFriendRequest(
-                                        fromUid: uid,
-                                      );
-                                    } catch (e) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(content: Text('Failed: $e')),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  child: const Text(
-                                    'Decline',
-                                    style: TextStyle(color: Colors.redAccent),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        const SizedBox(height: 24),
-                        const Text(
-                          'Sent',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                        const SizedBox(height: 8),
-                        if (sentIds.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xff1a1a1a),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xff2a2a2a),
-                              ),
-                            ),
-                            child: const Text(
-                              'No sent requests',
-                              style: TextStyle(color: Colors.white54),
-                            ),
-                          )
-                        else
-                          _UsersList(
-                            userIds: sentIds,
-                            trailingBuilder: (context, uid) => TextButton(
+                      )
+                    else
+                      _UsersList(
+                        userIds: receivedIds,
+                        trailingBuilder: (context, uid) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
                               onPressed: () async {
                                 try {
-                                  await _friendService.cancelFriendRequest(
-                                    toUid: uid,
+                                  await _friendService.acceptFriendRequest(
+                                    fromUid: uid,
+                                  );
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Failed: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              child: const Text('Accept'),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                try {
+                                  await _friendService.declineFriendRequest(
+                                    fromUid: uid,
                                   );
                                 } catch (e) {
                                   if (mounted) {
@@ -193,14 +128,57 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                                 }
                               },
                               child: const Text(
-                                'Cancel',
-                                style: TextStyle(color: Colors.orangeAccent),
+                                'Decline',
+                                style: TextStyle(color: Colors.redAccent),
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Sent',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    if (sentIds.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff1a1a1a),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xff2a2a2a)),
+                        ),
+                        child: const Text(
+                          'No sent requests',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      )
+                    else
+                      _UsersList(
+                        userIds: sentIds,
+                        trailingBuilder: (context, uid) => TextButton(
+                          onPressed: () async {
+                            try {
+                              await _friendService.cancelFriendRequest(
+                                toUid: uid,
+                              );
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Failed: $e')),
+                                );
+                              }
+                            }
+                          },
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(color: Colors.orangeAccent),
                           ),
-                      ],
-                    );
-                  },
+                        ),
+                      ),
+                  ],
                 );
               },
             ),

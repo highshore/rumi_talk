@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -12,9 +14,19 @@ import 'services/auth_service.dart';
 import 'services/stream_service.dart';
 import 'services/friend_service.dart';
 
+// Background message handler (must be top-level function)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print('Handling a background message: ${message.messageId}');
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Set up Firebase Messaging background handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Initialize Stream Chat
   await StreamService.initialize();
@@ -27,6 +39,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final base = ThemeData.dark();
+    final notoText = GoogleFonts.notoSansTextTheme(base.textTheme);
     return MaterialApp(
       title: 'RumiTalk',
       theme: ThemeData(
@@ -40,16 +54,16 @@ class MyApp extends StatelessWidget {
           onSecondary: Colors.white,
           onSurface: Colors.white,
         ),
-        appBarTheme: const AppBarTheme(
+        appBarTheme: AppBarTheme(
           backgroundColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
-          titleTextStyle: TextStyle(
+          titleTextStyle: GoogleFonts.notoSans(
             color: Colors.white,
             fontWeight: FontWeight.w600,
             fontSize: 18,
           ),
-          iconTheme: IconThemeData(color: Colors.white),
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
         inputDecorationTheme: InputDecorationTheme(
           hintStyle: const TextStyle(color: Colors.grey),
@@ -75,17 +89,16 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.white),
-          bodySmall: TextStyle(color: Colors.white70),
-          titleMedium: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
+        textTheme: notoText.apply(
+          bodyColor: Colors.white,
+          displayColor: Colors.white,
         ),
       ),
-      builder: (context, child) =>
-          StreamChat(client: StreamService.staticClient, child: child!),
+      builder: (context, child) => StreamChat(
+        client: StreamService.staticClient,
+        streamChatThemeData: StreamChatThemeData.fromTheme(Theme.of(context)),
+        child: child!,
+      ),
       home: const AuthWrapper(),
       routes: {
         '/login': (context) => const LoginScreen(),
@@ -124,12 +137,73 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
 
       await streamService.connectStreamUser();
+
+      // Set up push notifications after Stream connection
+      await _setupPushNotifications();
     } catch (e) {
       print('Failed to connect Stream user: $e');
     } finally {
       setState(() {
         _isConnectingStream = false;
       });
+    }
+  }
+
+  Future<void> _setupPushNotifications() async {
+    try {
+      // Request permission for iOS
+      final messaging = FirebaseMessaging.instance;
+
+      final settings = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        print('User granted permission for push notifications');
+
+        // Get FCM token
+        final token = await messaging.getToken();
+        if (token != null) {
+          print('FCM Token: $token');
+
+          // Add device to Stream Chat for push notifications
+          await StreamService.staticClient.addDevice(
+            token,
+            PushProvider.firebase,
+          );
+          print('Device registered with Stream Chat for push notifications');
+        }
+
+        // Listen to token refresh
+        FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+          print('FCM token refreshed: $newToken');
+          await StreamService.staticClient.addDevice(
+            newToken,
+            PushProvider.firebase,
+          );
+        });
+
+        // Handle foreground messages
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          print('Got a message whilst in the foreground!');
+          print('Message data: ${message.data}');
+
+          if (message.notification != null) {
+            print(
+              'Message also contained a notification: ${message.notification}',
+            );
+          }
+        });
+      } else {
+        print(
+          'User declined or has not accepted permission for push notifications',
+        );
+      }
+    } catch (e) {
+      print('Error setting up push notifications: $e');
     }
   }
 
